@@ -98,6 +98,7 @@ class ResearchAgent(BaseAgent):
         permission_tier: PermissionTier = PermissionTier.READ_ONLY,
         event_bus: Any | None = None,
         registry: Any | None = None,
+        resource_manager: Any | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -106,6 +107,7 @@ class ResearchAgent(BaseAgent):
             permission_tier=permission_tier,
             event_bus=event_bus,
             registry=registry,
+            resource_manager=resource_manager,
             **kwargs,
         )
         self._llm_call = llm_call

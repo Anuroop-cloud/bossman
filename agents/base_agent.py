@@ -61,6 +61,9 @@ from contracts.events import BossmanEvent, EventSeverity, EventType
 from contracts.heartbeat import HeartbeatAck, HeartbeatPayload
 from agents.context_compactor import compact_messages, COMPACTION_THRESHOLD
 
+# Optional — only imported when resource_manager is provided to avoid circular deps
+# from resources.resource_manager import ResourceManager  # type: ignore[import]
+
 logger = logging.getLogger(__name__)
 
 # Path to the SQLite checkpoint database
@@ -100,8 +103,9 @@ class BaseAgent(ABC):
         name: str,
         role: str,
         permission_tier: PermissionTier = PermissionTier.READ_ONLY,
-        event_bus: Any | None = None,   # core.event_bus.EventBus
-        registry: Any | None = None,    # core.registry.AgentRegistry
+        event_bus: Any | None = None,     # core.event_bus.EventBus
+        registry: Any | None = None,      # core.registry.AgentRegistry
+        resource_manager: Any | None = None,  # resources.resource_manager.ResourceManager
         heartbeat_interval: float = float(os.getenv("HEARTBEAT_INTERVAL_SECONDS", "10")),
         compaction_threshold: float = COMPACTION_THRESHOLD,
         metadata: dict[str, Any] | None = None,
@@ -121,6 +125,7 @@ class BaseAgent(ABC):
         # Infrastructure dependencies (optional — allow None for standalone tests)
         self._event_bus = event_bus
         self._registry = registry
+        self._resource_manager = resource_manager  # ResourceManager | None
 
         # Config
         self._heartbeat_interval = heartbeat_interval
