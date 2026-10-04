@@ -318,10 +318,36 @@ class TaskManager:
         log.info("Task %s replayed from DLQ", task_id)
         return task
 
+    async def discard_from_dlq(self, task_id: TaskId, reason: str = "discarded by operator") -> Task | None:
+        """Permanently drop a dead-lettered task (marks it CANCELLED). None if not in DLQ."""
+        async with self._lock:
+            task = next((t for t in self._dlq if t.task_id == task_id), None)
+            if task is None:
+                return None
+            self._dlq.remove(task)
+            task.status = TaskStatus.CANCELLED
+            task.dlq_reason = None
+            task.dlq_at = None
+
+        log.info("Task %s discarded from DLQ: %s", task_id, reason)
+        await self._bus.publish(
+            BossmanEvent.create(
+                EventType.TASK_CANCELLED,
+                message=f"Task {task_id!r} discarded from DLQ: {reason}",
+                task_id=task_id,
+                agent_id=task.assigned_to,
+                payload={"reason": reason, "from_dlq": True},
+            )
+        )
+        return task
+
     # ── Queries ───────────────────────────────────────────────────────────────
 
     async def get(self, task_id: TaskId) -> Task | None:
         return self._tasks.get(task_id)
+
+    async def all(self) -> list[Task]:
+        return list(self._tasks.values())
 
     async def pending(self) -> list[Task]:
         """Return pending tasks sorted by priority then creation time."""

@@ -47,3 +47,7 @@ env/
 
 # Context documentation (temporary exclusion per request)
 context/
+
+# Dashboard
+dashboard/node_modules/
+dashboard/dist/
