@@ -237,6 +237,10 @@ def create_app(runtime: BossmanRuntime | None = None, *, start_runtime: bool = T
     async def system():
         return views.system_view(rt())
 
+    @app.get("/api/cluster")
+    async def cluster():
+        return await rt().cluster_info()
+
     @app.get("/api/events")
     async def events(
         limit: int = Query(100, ge=1, le=500),

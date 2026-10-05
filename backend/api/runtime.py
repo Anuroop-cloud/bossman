@@ -32,6 +32,12 @@ from evaluation.health_checker import HealthChecker
 from recovery.circuit_breaker import CircuitBreakerRegistry
 from recovery.recovery_engine import RecoveryEngine
 from resources.resource_manager import ResourceManager
+from infra.backend import CoordinationBackend, RedisBackend
+from infra.distributed_bus import DistributedEventBus
+from infra.durable_registry import DurableAgentRegistry
+from infra.leader import LeaderElector
+from infra.persistent_ledger import PersistentLedger
+from infra.settings import InfraSettings
 
 log = logging.getLogger(__name__)
 
@@ -132,11 +138,31 @@ class EventStore:
 
 
 class BossmanRuntime:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        settings: InfraSettings | None = None,
+        *,
+        backend: CoordinationBackend | None = None,
+        ledger_store: Any = None,
+    ) -> None:
+        self.settings = settings or InfraSettings.from_env()
         self.started_monotonic = time.monotonic()
-        self.bus = EventBus()
+        self.backend: CoordinationBackend | None = None
+        self.elector: LeaderElector | None = None
+        self._ledger_store = ledger_store
+        self._owns_ledger_store = False
+
+        if self.settings.distributed:
+            self.backend = backend or RedisBackend(self.settings.redis_url)
+            self.bus: EventBus = DistributedEventBus(self.backend, self.settings.node_id)
+        else:
+            self.bus = EventBus()
         self.store = EventStore(self.bus)
-        self.registry = AgentRegistry(self.bus)
+        if self.settings.distributed:
+            assert self.backend is not None
+            self.registry: AgentRegistry = DurableAgentRegistry(self.bus, self.backend)
+        else:
+            self.registry = AgentRegistry(self.bus)
         self.tasks = TaskManager(self.bus)
         self.resources = ResourceManager(event_bus=self.bus)
         self.checker = HealthChecker()
@@ -149,6 +175,16 @@ class BossmanRuntime:
             diagnostician=self.diagnostician,
             circuit_breakers=self.circuit_breakers,
         )
+        self.ledger: PersistentLedger | None = None
+        if self._ledger_store is None and self.settings.distributed:
+            from infra.ledger_store import SqlLedgerStore
+
+            self._ledger_store = SqlLedgerStore(self.settings.database_url)
+            self._owns_ledger_store = True
+        if self._ledger_store is not None:
+            # Swap before the Evaluator captures the ledger reference.
+            self.ledger = PersistentLedger(self._ledger_store)
+            self.engine.ledger = self.ledger
         self.detector = FailureDetector(self.bus, on_failure=self.engine.handle_failure)
         self.watchdog = Watchdog(
             self.registry,
@@ -160,19 +196,80 @@ class BossmanRuntime:
             registry=self.registry, bus=self.bus, ledger=self.engine.ledger, checker=self.checker
         )
         self._running = False
+        self._duties_active = False
 
     @property
     def running(self) -> bool:
         return self._running
 
-    async def start(self) -> None:
+    @property
+    def is_leader(self) -> bool:
+        """Standalone nodes are always their own leader."""
+        return self.elector.is_leader if self.elector else True
+
+    async def cluster_info(self) -> dict[str, Any]:
+        return {
+            "mode": self.settings.mode,
+            "node_id": self.settings.node_id or "standalone",
+            "is_leader": self.is_leader,
+            "leader_id": (await self.elector.current_leader()) if self.elector else None,
+            "duties_active": self._duties_active,
+            "durable_ledger": self.ledger is not None,
+        }
+
+    # ── Singleton duties (watchdog / detector / evaluator) ────────────────────
+    # Exactly one node runs these. In standalone mode that is always us.
+
+    async def _become_leader(self) -> None:
+        if self._duties_active:
+            return
+        if isinstance(self.registry, DurableAgentRegistry):
+            await self.registry.restore()
+        if self.ledger is not None:
+            await self.ledger.restore()
+            await self.ledger.start_sync_loop(self.settings.ledger_sync_s)
         await self.detector.start()
         await self.evaluator.start()
         await self.watchdog.start()
+        self._duties_active = True
+
+    async def _step_down(self) -> None:
+        if not self._duties_active:
+            return
+        self._duties_active = False
+        await self.watchdog.stop()
+        await self.evaluator.stop()
+        await self.detector.stop()
+        if self.ledger is not None:
+            await self.ledger.stop()
+
+    async def start(self) -> None:
+        if self._ledger_store is not None and hasattr(self._ledger_store, "init_schema"):
+            await self._ledger_store.init_schema()
+        if self.settings.distributed:
+            assert self.backend is not None and isinstance(self.bus, DistributedEventBus)
+            await self.bus.start()
+            self.elector = LeaderElector(
+                self.backend,
+                self.settings.node_id,
+                lease_ms=self.settings.lease_ms,
+                on_elected=self._become_leader,
+                on_demoted=self._step_down,
+            )
+            await self.elector.tick()  # decide immediately so first requests are accurate
+            await self.elector.start()
+        else:
+            await self._become_leader()
         self._running = True
 
     async def stop(self) -> None:
         self._running = False
-        await self.watchdog.stop()
-        await self.evaluator.stop()
-        await self.detector.stop()
+        if self.elector:
+            await self.elector.stop()  # releases lease + steps down
+        await self._step_down()
+        if isinstance(self.bus, DistributedEventBus):
+            await self.bus.stop()
+        if self._owns_ledger_store and hasattr(self._ledger_store, "close"):
+            await self._ledger_store.close()
+        if self.backend is not None:
+            await self.backend.close()

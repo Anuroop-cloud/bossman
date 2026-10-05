@@ -1,0 +1,43 @@
+# BOSSman local infrastructure for Phase 9 (Redis + PostgreSQL).
+#
+#   docker compose up -d --wait          # start
+#   docker compose down                  # stop (data kept in named volumes)
+#   docker compose down -v               # stop and wipe data
+#
+# Host ports are deliberately non-default so they don't collide with a
+# local Redis/Postgres install:  Redis 6390 · PostgreSQL 5440.
+name: bossman
+
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:6390:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: bossman
+      POSTGRES_PASSWORD: bossman
+      POSTGRES_DB: bossman
+    ports:
+      - "127.0.0.1:5440:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bossman -d bossman"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  redis-data:
+  postgres-data:

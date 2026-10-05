@@ -25,6 +25,7 @@ dependencies = [
     "structlog>=24.1.0",
     "rich>=13.7.0",
     "httpx>=0.27.0",
+    "redis>=5.0.0",
 ]
 
 [project.optional-dependencies]
@@ -34,15 +35,18 @@ dev = [
     "pytest-cov>=5.0.0",
     "ruff>=0.4.0",
     "mypy>=1.10.0",
+    "fakeredis>=2.20.0",
+    "aiosqlite>=0.20.0",
 ]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["contracts*", "core*", "agents*", "resources*", "detection*", "recovery*", "evaluator*", "diagnosis*"]
+include = ["infra*", "contracts*", "core*", "agents*", "resources*", "detection*", "recovery*", "evaluator*", "diagnosis*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = ["integration: needs real Redis/PostgreSQL (docker compose up -d --wait)"]
 
 [tool.ruff]
 line-length = 100

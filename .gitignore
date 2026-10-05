@@ -49,5 +49,18 @@ env/
 context/
 
 # Dashboard
-dashboard/node_modules/
-dashboard/dist/
+*/node_modules/
+*/dist/
+
+# Local databases / caches / logs
+*.db
+*.sqlite3
+.ruff_cache/
+.mypy_cache/
+*.log
+
+# Docker (local volumes are named, nothing to ignore; override file is personal)
+docker-compose.override.yml
+
+# Local dev/test scripts and temporary files
+scratch/
