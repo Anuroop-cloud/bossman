@@ -64,14 +64,10 @@ export function CommandCenter() {
       <div className="page-head" style={{ marginBottom: 4 }}>
         <div>
           <h1 style={{ fontSize: '28px', letterSpacing: '-0.02em' }}>Command Center</h1>
-          <div className="page-sub" style={{ fontFamily: 'var(--mono)', fontSize: '12px', marginTop: '6px' }}>AI Agent Control Plane</div>
+          <div className="page-sub label-sans" style={{ marginTop: 6 }}>AI Agent Control Plane</div>
         </div>
         <div className="head-right" style={{ flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: overview.status === "HEALTHY" ? 'var(--ok)' : 'var(--warn)', fontFamily: 'var(--mono)', fontSize: '11.5px', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-            <div className={clsx("dot", overview.status === "HEALTHY" ? "ok" : overview.status === "DEGRADED" ? "warn" : "bad", "pulse")} style={{ margin: 0 }} />
-            SYSTEM {overview.status}
-          </div>
-          <div className="mono dim" style={{ fontSize: '11.5px' }}>
+          <div className="label-sans" style={{ color: 'var(--cg-muted)' }}>
             {now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })} &nbsp; {now.toLocaleTimeString('en-GB', { hour12: false })}
           </div>
         </div>
@@ -88,7 +84,7 @@ export function CommandCenter() {
               <div><span className="dot bad" /> {overview.agents.health.FAIL || 0} Failed</div>
             </div>
           </div>
-          <div style={{ padding: 8, border: '1px solid var(--border-strong)', borderRadius: '6px', color: 'var(--text-faint)' }}><Users size={20} /></div>
+          <div className="metric-icon"><Users size={18} /></div>
         </div>
 
         <div className="panel metric" style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'start' }}>
@@ -101,7 +97,7 @@ export function CommandCenter() {
               <div><span className="dot bad" /> {num(overview.tasks.failed + overview.tasks.dlq)} Failed</div>
             </div>
           </div>
-          <div style={{ padding: 8, border: '1px solid var(--border-strong)', borderRadius: '6px', color: 'var(--text-faint)' }}><FileText size={20} /></div>
+          <div className="metric-icon"><FileText size={18} /></div>
         </div>
 
         <div className="panel metric" style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'start' }}>
@@ -114,7 +110,7 @@ export function CommandCenter() {
               <div><span className="dot bad" /> {num(overview.resources.suspected_deadlocks)} Blocked</div>
             </div>
           </div>
-          <div style={{ padding: 8, border: '1px solid var(--border-strong)', borderRadius: '6px', color: 'var(--text-faint)' }}><Database size={20} /></div>
+          <div className="metric-icon"><Database size={18} /></div>
         </div>
 
         <div className="panel metric" style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'start' }}>
@@ -127,7 +123,7 @@ export function CommandCenter() {
               <div><span className="dot bad" /> {num(overview.incidents.critical)} Critical</div>
             </div>
           </div>
-          <div style={{ padding: 8, border: '1px solid var(--border-strong)', borderRadius: '6px', color: 'var(--text-faint)' }}><ShieldAlert size={20} /></div>
+          <div className="metric-icon"><ShieldAlert size={18} /></div>
         </div>
       </div>
 

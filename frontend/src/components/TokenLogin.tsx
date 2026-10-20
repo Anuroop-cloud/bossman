@@ -27,7 +27,7 @@ export function TokenLogin() {
       </label>
       <input id="tok" type="password" value={value} onChange={(e) => setValue(e.target.value)}
              placeholder="paste token" autoComplete="off" />
-      <button className="btn sm" type="submit" disabled={!value.trim()}>Sign in</button>
+      <button className="btn sm signin" type="submit" disabled={!value.trim()}>Sign in</button>
     </form>
   );
 }

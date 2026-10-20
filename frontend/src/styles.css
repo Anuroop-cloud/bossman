@@ -356,3 +356,50 @@ pre.json, pre.code { background: var(--bg-side); border: 1px solid var(--border)
 .copy-wrap .btn { position: absolute; top: 8px; right: 8px; }
 pre.code { margin: 0; padding: 14px 16px; overflow: auto; font: 12.5px/1.6 var(--mono); }
 @media (max-width: 760px) { .topbar { padding: 10px 16px; } .content { padding: 16px; } }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   Sidebar, top bar and headline metric cards — ChatGPT native dark styling.
+   Scoped on purpose: the rest of the UI (panels, tables, topology) keeps v2.
+   ═════════════════════════════════════════════════════════════════════════ */
+:root, :root[data-theme="dark"] {
+  --cg-sidebar: #171717; --cg-main: #212121; --cg-card: #2f2f2f; --cg-hover: #383838;
+  --cg-text: #ececec; --cg-text-2: #b4b4b4; --cg-muted: #737373; --cg-hair: rgba(255, 255, 255, 0.08);
+}
+:root[data-theme="light"] {
+  --cg-sidebar: #f9f9f9; --cg-main: #ffffff; --cg-card: #f4f4f4; --cg-hover: #ececec;
+  --cg-text: #0d0d0d; --cg-text-2: #5d5d5d; --cg-muted: #8f8f8f; --cg-hair: rgba(0, 0, 0, 0.08);
+}
+
+/* sidebar */
+.sidebar { background: var(--cg-sidebar); border-right-color: rgba(255, 255, 255, 0.06); }
+.sidebar .brand-mark { background: var(--cg-text); border-radius: 8px; }
+.sidebar .brand-mark::after { background: var(--cg-sidebar); }
+.sidebar .new-task { border: 0; background: var(--cg-card); border-radius: 10px; color: var(--cg-text); }
+.sidebar .new-task:hover { background: var(--cg-hover); }
+.sidebar .nav-link { color: var(--cg-text-2); }
+.sidebar .nav-link:hover { background: var(--cg-hover); color: var(--cg-text); }
+.sidebar .nav-link.active { background: var(--cg-card); color: var(--cg-text); }
+.sidebar .nav-link.active svg { color: var(--cg-text); }
+.sidebar .nav-section { color: var(--cg-muted); }
+.sidebar .sidebar-foot { border-top-color: rgba(255, 255, 255, 0.06); }
+.sidebar input[type="password"] { background: var(--cg-main); border: 1px solid var(--cg-hair); border-radius: 12px; }
+.sidebar input[type="password"]:focus { border-color: rgba(255, 255, 255, 0.24); box-shadow: none; }
+.sidebar .btn.signin { background: var(--cg-text); color: var(--cg-sidebar); border: 0; font-weight: 500; }
+.sidebar .btn.signin:hover:not(:disabled) { background: #d4d4d4; }
+.sidebar .btn.signin:disabled { background: #262626; color: var(--cg-muted); border: 0; opacity: 1; }
+
+/* top bar: flat neutral pills, colour lives in the 6px dot */
+.topbar { background: color-mix(in srgb, var(--cg-main) 92%, transparent); border-bottom-color: rgba(255, 255, 255, 0.06); }
+.topbar .crumbs { color: var(--cg-text-2); }
+.topbar .status-pill { background: var(--cg-card); color: var(--cg-text); border: 0; }
+.topbar .status-pill .dot { width: 6px; height: 6px; }
+.topbar .icon-btn { border: 0; background: var(--cg-card); }
+.topbar .icon-btn:hover { background: var(--cg-hover); }
+
+/* page header + headline metric cards (no borders, elevation by luminance) */
+.label-sans { font-family: var(--sans); font-size: 0.875rem; color: var(--cg-text-2); }
+.panel.metric { background: var(--cg-card); border: 0; border-radius: 12px; box-shadow: none; }
+.panel.metric .label, .panel.metric .sub { font-family: var(--sans); color: var(--cg-text-2); }
+.panel.metric .value { color: var(--cg-text); }
+.panel.metric .dot { width: 6px; height: 6px; }
+.metric-icon { color: #9b9b9b; display: grid; place-items: center; }
