@@ -1,0 +1,66 @@
+# BOSSman default action policy.
+#
+# Agents call POST /v1/agents/{id}/authorize before any side-effecting
+# action. The decision is allow | deny | require_approval and is recorded in
+# the audit log. Edit at runtime with PUT /api/policies (admin) or
+# `bossman policy apply -f policy.yaml`.
+#
+# Evaluation order:
+#   1. kill switches  (flags action.<a> / tool.<t> = off)        → deny
+#   2. capabilities   (tool not declared by the agent)            → deny
+#   3. tier           (agent tier below the action class)         → deny
+#   4. rules          (first match wins)
+#   5. irreversible   (needs justification; needs approval)
+#   6. DESTRUCTIVE    (always a human gate)
+#   7. otherwise                                                   → allow
+version: 1
+
+settings:
+  irreversible_requires_approval: true
+  default_approvals_required: 1
+  destructive_approvals_required: 2        # two-person rule
+  approval_ttl_s: 3600
+  grant_ttl_s: 300
+  require_justification_for_irreversible: true
+  enforce_capabilities: true               # agents may only use tools they declared
+  unknown_action_tier: WRITE
+
+# action → minimum permission tier
+action_classes:
+  read: READ_ONLY
+  query: READ_ONLY
+  search: READ_ONLY
+  fetch: READ_ONLY
+  summarize: READ_ONLY
+  write: WRITE
+  create: WRITE
+  update: WRITE
+  execute: WRITE
+  send: WRITE
+  message: WRITE
+  delete: PRIVILEGED
+  deploy: PRIVILEGED
+  configure: PRIVILEGED
+  payment: PRIVILEGED
+  grant_access: PRIVILEGED
+  destroy: DESTRUCTIVE
+  drop: DESTRUCTIVE
+  wipe: DESTRUCTIVE
+
+# Actions that cannot be undone. They need a justification and an approval.
+irreversible_actions: [delete, deploy, payment, destroy, drop, wipe, grant_access]
+
+rules:
+  - name: never-drop-databases
+    match:
+      args_regex: "(?i)\\b(drop|truncate)\\s+(database|schema|table)\\b"
+    decision: deny
+    reason: "Dropping or truncating databases is never allowed for agents (SaaStr incident class)."
+
+  - name: production-changes-need-two-people
+    match:
+      labels: { env: production }
+      action_in: [write, update, delete, deploy, configure, execute]
+    decision: require_approval
+    approvals_required: 2
+    reason: "Production changes require two human approvals (Kiro incident class)."

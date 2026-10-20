@@ -43,13 +43,13 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from contracts.agent_state import AgentId
-from contracts.events import BossmanEvent, EventType
-from core.event_bus import EventBus
-from resources.llm_semaphore import LLMSemaphore, SemaphoreTimeoutError
-from resources.token_bucket import TokenBucket, TokenBucketExhaustedError
-from resources.mediator import ResourceMediator, ResourceTimeoutError
-from resources.resource_manager import ResourceManager
+from bossman_server.contracts.agent_state import AgentId
+from bossman_server.contracts.events import BossmanEvent, EventType
+from bossman_server.core.event_bus import EventBus
+from bossman_server.resources.llm_semaphore import LLMSemaphore, SemaphoreTimeoutError
+from bossman_server.resources.token_bucket import TokenBucket, TokenBucketExhaustedError
+from bossman_server.resources.mediator import ResourceMediator, ResourceTimeoutError
+from bossman_server.resources.resource_manager import ResourceManager
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -540,7 +540,7 @@ class TestResourceManager:
     @pytest.mark.asyncio
     async def test_injected_into_research_agent(self, tmp_path):
         """ResourceManager can be injected into ResearchAgent and is accessible."""
-        from agents.research_agent import ResearchAgent
+        from bossman_server.agents.research_agent import ResearchAgent
         from unittest.mock import patch
 
         db = str(tmp_path / "rm_test.db")
@@ -561,6 +561,6 @@ class TestResourceManager:
 
         assert agent._resource_manager is rm
 
-        with patch("agents.base_agent._CHECKPOINT_DB", db):
+        with patch("bossman_server.agents.base_agent._CHECKPOINT_DB", db):
             await agent.start()
             await agent.stop()

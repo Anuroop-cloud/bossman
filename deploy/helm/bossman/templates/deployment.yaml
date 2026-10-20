@@ -1,0 +1,121 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "bossman.fullname" . }}
+  labels: {{- include "bossman.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels: {{- include "bossman.selectorLabels" . | nindent 6 }}
+  strategy:
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  template:
+    metadata:
+      labels: {{- include "bossman.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ toJson .Values | sha256sum | trunc 16 }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "7070"
+        prometheus.io/path: /metrics
+    spec:
+      serviceAccountName: {{ include "bossman.fullname" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: migrate
+          image: {{ include "bossman.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["migrate"]
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ include "bossman.secretName" . }}, key: postgresPassword } }
+            - name: DATABASE_URL
+              value: {{ include "bossman.databaseUrl" . | quote }}
+          securityContext: {{- toYaml .Values.securityContext | nindent 12 }}
+      containers:
+        - name: bossman
+          image: {{ include "bossman.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["serve"]
+          ports:
+            - { name: http, containerPort: 7070 }
+          env:
+            - { name: BOSSMAN_ENV, value: {{ .Values.env | quote }} }
+            - { name: BOSSMAN_MODE, value: distributed }
+            - { name: BOSSMAN_PERSISTENCE, value: sql }
+            - { name: BOSSMAN_AUTO_MIGRATE, value: "false" }
+            - { name: BOSSMAN_PUBLIC_READS, value: {{ .Values.publicReads | quote }} }
+            - { name: BOSSMAN_PUBLIC_URL, value: {{ include "bossman.url" . | quote }} }
+            - name: BOSSMAN_NODE_ID
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - { name: REDIS_URL, value: {{ include "bossman.redisUrl" . | quote }} }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ include "bossman.secretName" . }}, key: postgresPassword } }
+            - { name: DATABASE_URL, value: {{ include "bossman.databaseUrl" . | quote }} }
+            - name: BOSSMAN_ADMIN_TOKEN
+              valueFrom: { secretKeyRef: { name: {{ include "bossman.secretName" . }}, key: adminToken } }
+            - name: BOSSMAN_OPERATOR_TOKEN
+              valueFrom: { secretKeyRef: { name: {{ include "bossman.secretName" . }}, key: operatorToken } }
+            - name: BOSSMAN_AGENT_TOKEN
+              valueFrom: { secretKeyRef: { name: {{ include "bossman.secretName" . }}, key: agentToken } }
+            - { name: BOSSMAN_AGENT_TOKEN_NAMESPACES, value: {{ .Values.auth.agentTokenNamespaces | quote }} }
+            - { name: BOSSMAN_AGENT_MAX_TIER, value: {{ .Values.auth.agentMaxTier | quote }} }
+            - name: BOSSMAN_SECRET_KEY
+              valueFrom: { secretKeyRef: { name: {{ include "bossman.secretName" . }}, key: secretKey } }
+            {{- if or .Values.auth.anthropicApiKey .Values.auth.existingSecret }}
+            - name: ANTHROPIC_API_KEY
+              valueFrom: { secretKeyRef: { name: {{ include "bossman.secretName" . }}, key: anthropicApiKey, optional: true } }
+            {{- end }}
+            - { name: HEARTBEAT_INTERVAL_SECONDS, value: {{ .Values.heartbeat.intervalSeconds | quote }} }
+            - { name: HEARTBEAT_TIMEOUT_SECONDS, value: {{ .Values.heartbeat.timeoutSeconds | quote }} }
+            - { name: MAX_AGENT_RESTARTS, value: {{ .Values.restartBudget.maxRestarts | quote }} }
+            - { name: RESTART_WINDOW_SECONDS, value: {{ .Values.restartBudget.windowSeconds | quote }} }
+            - { name: LLM_MAX_CONCURRENT, value: {{ .Values.llmLimit.maxConcurrent | quote }} }
+            - { name: LLM_RATE_PER_SECOND, value: {{ .Values.llmLimit.ratePerSecond | quote }} }
+            - { name: LLM_BURST, value: {{ .Values.llmLimit.burst | quote }} }
+            {{- if .Values.roleLimits }}
+            - { name: BOSSMAN_ROLE_LIMITS, value: {{ .Values.roleLimits | quote }} }
+            {{- end }}
+            {{- if .Values.kubernetesRestarts.enabled }}
+            - { name: BOSSMAN_K8S_RESTART, value: "1" }
+            {{- end }}
+            {{- if .Values.otel.endpoint }}
+            - { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: {{ .Values.otel.endpoint | quote }} }
+            - { name: OTEL_SERVICE_NAME, value: bossman }
+            {{- end }}
+            {{- range $k, $v := .Values.extraEnv }}
+            - { name: {{ $k }}, value: {{ $v | quote }} }
+            {{- end }}
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+            failureThreshold: 6
+          startupProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 2
+            failureThreshold: 60
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+          securityContext: {{- toYaml .Values.securityContext | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      affinity:
+        {{- if .Values.affinity }}
+        {{- toYaml .Values.affinity | nindent 8 }}
+        {{- else }}
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels: {{- include "bossman.selectorLabels" . | nindent 20 }}
+        {{- end }}

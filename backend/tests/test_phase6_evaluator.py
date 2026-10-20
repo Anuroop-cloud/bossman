@@ -55,19 +55,19 @@ from typing import Any
 
 import pytest
 
-from contracts.agent_state import AgentId, AgentInfo, AgentState, AgentStatus, ResourceUsage
-from contracts.events import BossmanEvent, EventType
-from contracts.recovery_ledger import FailureType, RecoveryAttempt, RecoveryOutcome, RecoveryStrategy
-from core.event_bus import EventBus
-from core.registry import AgentRegistry
-from evaluation.health_checker import (
+from bossman_server.contracts.agent_state import AgentId, AgentInfo, AgentState, AgentStatus, ResourceUsage
+from bossman_server.contracts.events import BossmanEvent, EventType
+from bossman_server.contracts.recovery_ledger import FailureType, RecoveryAttempt, RecoveryOutcome, RecoveryStrategy
+from bossman_server.core.event_bus import EventBus
+from bossman_server.core.registry import AgentRegistry
+from bossman_server.evaluation.health_checker import (
     AgentHealthReport,
     HealthCheckStatus,
     HealthChecker,
     HealthLevel,
 )
-from evaluation.evaluator import Evaluator
-from recovery.recovery_engine import RecoveryLedger
+from bossman_server.evaluation.evaluator import Evaluator
+from bossman_server.recovery.recovery_engine import RecoveryLedger
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -261,7 +261,7 @@ class TestAgentHealthReport:
 
     def test_overall_status_is_worst(self):
         report = AgentHealthReport(agent_id=AgentId("x"))
-        from evaluation.health_checker import HealthCheckResult
+        from bossman_server.evaluation.health_checker import HealthCheckResult
         report.results = [
             HealthCheckResult(level=HealthLevel.L1_LIVENESS, status=HealthCheckStatus.PASS, detail="ok"),
             HealthCheckResult(level=HealthLevel.L2_PROGRESS, status=HealthCheckStatus.WARN, detail="warn"),

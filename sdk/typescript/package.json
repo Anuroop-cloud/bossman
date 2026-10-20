@@ -1,0 +1,25 @@
+{
+  "name": "@bossman/sdk",
+  "version": "0.2.0",
+  "description": "Connect any AI agent (Node/TypeScript) to a BOSSman control plane: supervision, recovery, leases, policy and approvals",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md"],
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test test/e2e.test.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.6.3"
+  }
+}

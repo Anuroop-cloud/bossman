@@ -6,10 +6,10 @@ import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
-from api.app import create_app
-from api.runtime import BossmanRuntime
-from contracts.agent_state import AgentInfo, PermissionTier
-from core.task_manager import TaskStatus
+from bossman_server.api.app import create_app
+from bossman_server.api.runtime import BossmanRuntime
+from bossman_server.contracts.agent_state import AgentInfo, PermissionTier
+from bossman_server.core.task_manager import TaskStatus
 
 
 @pytest.fixture
@@ -44,9 +44,11 @@ def test_missing_resources_404_with_envelope(client, path):
 
 def test_system_never_exposes_secrets(client, monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-super-secret-value")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-super-secret-value")
     monkeypatch.setenv("DATABASE_URL", "postgresql://user:hunter2@db/x")
     body = client.get("/api/system").text
     assert "sk-super-secret-value" not in body
+    assert "sk-ant-super-secret-value" not in body
     assert "hunter2" not in body
     assert client.get("/api/system").json()["llm"]["configured"] is True
 

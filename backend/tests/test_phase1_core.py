@@ -11,16 +11,16 @@ import asyncio
 import pytest
 from datetime import timedelta, timezone, datetime
 
-from contracts.agent_state import AgentInfo, AgentStatus, PermissionTier
-from contracts.events import EventType
-from contracts.heartbeat import HeartbeatPayload
-from contracts.recovery_ledger import RecoveryAttempt, RecoveryStrategy, FailureType, new_incident_id
-from core.event_bus import EventBus
-from core.registry import AgentRegistry
-from core.task_manager import TaskManager, TaskPriority, TaskStatus
-from core.subagent_manager import SubagentManager
-from core.watchdog import Watchdog
-from core.fault_injector import FaultInjector, FaultType, FaultConfig
+from bossman_server.contracts.agent_state import AgentInfo, AgentStatus, PermissionTier
+from bossman_server.contracts.events import EventType
+from bossman_server.contracts.heartbeat import HeartbeatPayload
+from bossman_server.contracts.recovery_ledger import RecoveryAttempt, RecoveryStrategy, FailureType, new_incident_id
+from bossman_server.core.event_bus import EventBus
+from bossman_server.core.registry import AgentRegistry
+from bossman_server.core.task_manager import TaskManager, TaskPriority, TaskStatus
+from bossman_server.core.subagent_manager import SubagentManager
+from bossman_server.core.watchdog import Watchdog
+from bossman_server.core.fault_injector import FaultInjector, FaultType, FaultConfig
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -61,7 +61,7 @@ async def test_event_bus_wildcard_subscriber(bus):
         received.append(event.event_type)
 
     bus.subscribe(handler)
-    from contracts.events import BossmanEvent
+    from bossman_server.contracts.events import BossmanEvent
     await bus.publish(BossmanEvent.create(EventType.BOSSMAN_STARTED))
     await bus.publish(BossmanEvent.create(EventType.AGENT_REGISTERED))
     assert EventType.BOSSMAN_STARTED in received
@@ -75,7 +75,7 @@ async def test_event_bus_typed_subscriber(bus):
         received.append(event)
 
     bus.subscribe(handler, EventType.AGENT_TIMEOUT)
-    from contracts.events import BossmanEvent
+    from bossman_server.contracts.events import BossmanEvent
     await bus.publish(BossmanEvent.create(EventType.BOSSMAN_STARTED))
     await bus.publish(BossmanEvent.create(EventType.AGENT_TIMEOUT))
     assert len(received) == 1
@@ -96,7 +96,7 @@ async def test_event_bus_subscriber_error_isolation(bus):
     bus.subscribe(bad_handler)
     bus.subscribe(good_handler)
 
-    from contracts.events import BossmanEvent
+    from bossman_server.contracts.events import BossmanEvent
     await bus.publish(BossmanEvent.create(EventType.BOSSMAN_STARTED))
     assert len(good_received) == 1
     assert bus.stats["subscriber_errors"] == 1
@@ -161,7 +161,7 @@ async def test_task_lifecycle(task_manager):
     task = await task_manager.create("Summarise research papers", priority=TaskPriority.HIGH)
     assert task.status == TaskStatus.PENDING
 
-    from contracts.agent_state import new_agent_id
+    from bossman_server.contracts.agent_state import new_agent_id
     agent_id = new_agent_id()
     task = await task_manager.assign(task.task_id, agent_id)
     assert task.status == TaskStatus.ASSIGNED
@@ -177,7 +177,7 @@ async def test_task_lifecycle(task_manager):
 @pytest.mark.asyncio
 async def test_task_dlq_after_max_attempts(task_manager):
     task = await task_manager.create("Risky operation", max_attempts=2)
-    from contracts.agent_state import new_agent_id
+    from bossman_server.contracts.agent_state import new_agent_id
     agent_id = new_agent_id()
 
     # Fail twice — should land in DLQ
@@ -321,7 +321,7 @@ async def test_fault_injector_deadlock(registry, task_manager, bus):
 
 
 def test_recovery_ledger_model():
-    from contracts.agent_state import new_agent_id
+    from bossman_server.contracts.agent_state import new_agent_id
     attempt = RecoveryAttempt(
         incident_id=new_incident_id(),
         agent_id=new_agent_id(),
@@ -331,7 +331,7 @@ def test_recovery_ledger_model():
     )
     assert not attempt.is_terminal
     attempt.mark_complete("SUCCESS", verified=True)
-    from contracts.recovery_ledger import RecoveryOutcome
+    from bossman_server.contracts.recovery_ledger import RecoveryOutcome
     assert attempt.outcome == RecoveryOutcome.SUCCESS
     assert attempt.verified_by_evaluator is True
     assert attempt.duration_seconds is not None

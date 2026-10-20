@@ -26,11 +26,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from agents.context_compactor import compact_messages, COMPACTION_THRESHOLD
-from agents.base_agent import PermissionGateError
-from agents.research_agent import ResearchAgent, MAX_REFLECT_LOOPS
-from contracts.agent_state import AgentStatus, PermissionTier
-from contracts.heartbeat import HeartbeatAck
+from bossman_server.agents.context_compactor import compact_messages, COMPACTION_THRESHOLD
+from bossman_server.agents.base_agent import PermissionGateError
+from bossman_server.agents.research_agent import ResearchAgent, MAX_REFLECT_LOOPS
+from bossman_server.contracts.agent_state import AgentStatus, PermissionTier
+from bossman_server.contracts.heartbeat import HeartbeatAck
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -64,7 +64,7 @@ def make_agent(
         heartbeat_interval=9999,  # disable automatic heartbeat firing in tests
     )
     if db_path is not None:
-        import agents.base_agent as ba
+        import bossman_server.agents.base_agent as ba
         # Patch the module-level checkpoint path for this agent
         agent._checkpoint_db_override = db_path
     return agent
@@ -72,7 +72,7 @@ def make_agent(
 
 async def start_agent(agent: ResearchAgent, db_path: str) -> None:
     """Start agent with a specific SQLite path (patches module constant)."""
-    with patch("agents.base_agent._CHECKPOINT_DB", db_path):
+    with patch("bossman_server.agents.base_agent._CHECKPOINT_DB", db_path):
         await agent.start()
 
 
@@ -124,7 +124,7 @@ class TestContextCompactor:
     @pytest.mark.asyncio
     async def test_recent_messages_preserved_verbatim(self):
         """The last PRESERVE_RECENT messages survive compaction unchanged."""
-        from agents.context_compactor import PRESERVE_RECENT
+        from bossman_server.agents.context_compactor import PRESERVE_RECENT
         tail = [{"role": "user", "content": f"recent-{i}"} for i in range(PRESERVE_RECENT)]
         messages = (
             [{"role": "user", "content": f"old-{i}"} for i in range(20)]

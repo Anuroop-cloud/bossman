@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "../lib/useQuery";
 import { useLive } from "../lib/live";
-import type { Overview, BossEvent } from "../types";
-import { num, pct, relTime, severityTone } from "../lib/format";
+import type { Overview } from "../types";
+import { num, severityTone } from "../lib/format";
 import clsx from "clsx";
 import { TopologyGraph } from "../components/TopologyGraph";
 import { Users, FileText, Database, ShieldAlert } from "lucide-react";
@@ -29,7 +29,7 @@ function MiniBars({ percentage }: { percentage: number }) {
 }
 
 export function CommandCenter() {
-  const { data: overview, loading, error, stale } = useQuery<Overview>("/api/overview");
+  const { data: overview, loading, error } = useQuery<Overview>("/api/overview");
   const live = useLive();
   const [now, setNow] = useState(new Date());
 
@@ -208,7 +208,7 @@ export function CommandCenter() {
               <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-faint)' }}>No recent incidents.</div>
             ) : (
               <div style={{ display: 'grid', padding: '16px 0' }}>
-                {overview.incidents.recent.slice(0, 3).map((inc, i) => (
+                {overview.incidents.recent.slice(0, 3).map((inc) => (
                   <div key={inc.incident_id} style={{ display: 'grid', gridTemplateColumns: '16px 1fr auto auto', gap: 12, alignItems: 'center', padding: '10px 16px' }}>
                     <div className={clsx("dot", inc.state === "resolved" ? "ok" : "warn")} />
                     <div>

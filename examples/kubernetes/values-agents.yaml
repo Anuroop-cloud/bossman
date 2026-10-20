@@ -1,0 +1,24 @@
+# helm install bossman deploy/helm/bossman -f examples/kubernetes/values-agents.yaml
+#
+# Runs BOSSman (2 nodes, leader-elected) plus two supervised agent fleets.
+# Agents get BOSSMAN_URL / BOSSMAN_API_KEY / POD_NAME injected; BOSSman can
+# restart an individual pod during recovery (kubernetesRestarts.enabled).
+replicaCount: 2
+publicReads: false
+roleLimits: "default/researcher=10,default/writer=5"
+
+agents:
+  - name: researcher
+    image: ghcr.io/your-org/researcher-agent:1.0.0   # built from examples/quickstart
+    command: ["python", "examples/quickstart/agent.py"]
+    replicas: 3
+    role: researcher
+  - name: writer
+    image: ghcr.io/your-org/writer-agent:1.0.0       # built from examples/typescript
+    replicas: 2
+    role: writer
+
+ingress:
+  enabled: true
+  className: nginx
+  host: bossman.internal.example.com

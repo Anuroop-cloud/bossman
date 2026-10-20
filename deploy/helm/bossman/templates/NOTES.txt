@@ -1,0 +1,23 @@
+BOSSman {{ .Chart.AppVersion }} is starting ({{ .Values.replicaCount }} node(s), one elected leader).
+
+1. Reach the API + dashboard:
+{{- if .Values.ingress.enabled }}
+   https://{{ .Values.ingress.host }}
+{{- else }}
+   kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "bossman.fullname" . }} 7070:{{ .Values.service.port }}
+   open http://localhost:7070
+{{- end }}
+
+2. Credentials (stored in Secret {{ include "bossman.secretName" . }}):
+   export BOSSMAN_TOKEN=$(kubectl -n {{ .Release.Namespace }} get secret {{ include "bossman.secretName" . }} -o jsonpath='{.data.adminToken}' | base64 -d)
+   export BOSSMAN_API_KEY=$(kubectl -n {{ .Release.Namespace }} get secret {{ include "bossman.secretName" . }} -o jsonpath='{.data.agentToken}' | base64 -d)
+
+3. Check it:
+   pip install bossman-sdk && bossman --url http://localhost:7070 doctor
+
+Agents inside the cluster connect to {{ include "bossman.url" . }} with BOSSMAN_API_KEY.
+{{- if or .Values.redis.enabled .Values.postgresql.enabled }}
+
+NOTE: the bundled Redis/PostgreSQL are single-instance and meant for evaluation.
+      For production use managed services (externalRedisUrl / externalDatabaseUrl).
+{{- end }}

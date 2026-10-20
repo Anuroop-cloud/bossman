@@ -248,8 +248,190 @@ export interface SystemView {
 
 export interface SessionInfo {
   tier: string;
+  role: string;
+  name: string | null;
+  namespaces: string[];
   actions_enabled: boolean;
+  public_reads: boolean;
   can_replay_task: boolean;
   can_discard_task: boolean;
+  can_operate: boolean;
+  is_admin: boolean;
   unsupported_actions: string[];
+}
+
+export interface Directive {
+  directive_id: string;
+  agent_id: string;
+  type: string;
+  params: Record<string, Json>;
+  reason: string;
+  issued_by: string;
+  status: "PENDING" | "DELIVERED" | "ACKED" | "FAILED" | "EXPIRED";
+  created_at: string;
+  acked_at: string | null;
+  result: Record<string, Json> | null;
+}
+
+export interface AgentDetailView {
+  agent: Agent;
+  health: HealthReport & { levels: Record<string, HealthLevel> };
+  current_task: Task | null;
+  tasks: Task[];
+  events: BossEvent[];
+  incidents: Incident[];
+  configuration: {
+    metadata: Record<string, Json>;
+    permission_tier: string;
+    namespace: string;
+    capabilities: string[];
+    labels: Record<string, string>;
+    supervisor: string | null;
+    singleton_key: string | null;
+    managed_id: string | null;
+    managed_name: string | null;
+    transport: string;
+    epoch: number;
+    sdk: string | null;
+  };
+  directives: { outstanding: Directive[]; recent: Directive[] };
+  flags: Record<string, boolean>;
+  probes: Record<string, { passed: boolean; detail: string; at: number }>;
+  restart_count_in_window: number;
+  restart_budget: number;
+}
+
+export interface Checkpoint {
+  task_id: string;
+  seq: number;
+  phase: string;
+  state: Json;
+  agent_id: string;
+  at: number;
+}
+
+export interface TaskDetailView {
+  task: Task & {
+    trace_id: string | null;
+    depends_on: string[];
+    parent_task_id: string | null;
+    namespace: string;
+    attempts: { attempt: number; agent_id: string; started_at: string; ended_at?: string; outcome: string; error?: string }[];
+    quarantine_reason: string | null;
+    output_schema: Json | null;
+    not_before: string | null;
+    lease_expires_at: string | null;
+  };
+  events: BossEvent[];
+  checkpoints: Checkpoint[];
+}
+
+export interface Approval {
+  approval_id: string;
+  agent_id: string;
+  agent_name: string;
+  namespace: string;
+  request: { action: string; tool: string | null; resource: string | null; args: string; justification: string | null;
+             labels: Record<string, string>; credentials: string[]; task_id: string | null };
+  decision: { reason: string; rule: string | null; required_tier: string | null };
+  required: number;
+  approvals: { by: string; at: number; reason: string }[];
+  denials: { by: string; at: number; reason: string }[];
+  status: "pending" | "approved" | "denied" | "expired";
+  created_at: number;
+  expires_at: number;
+  grant_id: string | null;
+}
+
+export interface FlagRule {
+  rule_id: string;
+  key: string;
+  enabled: boolean;
+  namespace: string | null;
+  role: string | null;
+  agent_id: string | null;
+  rollout_percent: number;
+  note: string;
+  updated_by: string;
+  updated_at: number;
+}
+
+export interface ApiKeyRecord {
+  key_id: string;
+  name: string;
+  role: string;
+  namespaces: string[];
+  max_tier: string;
+  prefix: string;
+  created_by: string;
+  created_at: number;
+  revoked: boolean;
+  last_used_at: number | null;
+}
+
+export interface SecretRecord {
+  name: string;
+  namespace: string;
+  allowed_hosts: string[];
+  allowed_tools: string[];
+  min_tier: string;
+  release: "proxy" | "direct";
+  updated_by: string;
+}
+
+export interface ManagedProc {
+  managed_id: string;
+  name: string;
+  runtime: string;
+  command: string[];
+  image: string | null;
+  role: string;
+  namespace: string;
+  restart_policy: string;
+  desired_state: string;
+  state: string;
+  pid: number | null;
+  restarts_in_window: number;
+  total_restarts: number;
+  max_restarts: number;
+  exit_code: number | null;
+}
+
+export interface SupervisorView {
+  name: string;
+  strategy: string;
+  max_restarts: number;
+  window_s: number;
+  parent: string | null;
+  restarts_in_window: number;
+  budget_remaining: number;
+  members: string[];
+}
+
+export interface LimitView {
+  name: string;
+  max_concurrent: number | null;
+  rate_per_s: number | null;
+  burst: number | null;
+  in_use: number;
+  holders: string[];
+  tokens_available: number | null;
+  utilisation: number | null;
+  description: string;
+}
+
+export interface CircuitView {
+  key: string;
+  state: "CLOSED" | "OPEN" | "HALF_OPEN";
+  failures: number;
+  retry_after_s: number;
+  last_error: string | null;
+  reason: string | null;
+}
+
+export interface TraceView {
+  trace_id: string;
+  tasks: (Task & { parent_task_id: string | null; depends_on: string[]; trace_id: string })[];
+  edges: { from: string; to: string; kind: "depends_on" | "parent" }[];
+  events: BossEvent[];
 }

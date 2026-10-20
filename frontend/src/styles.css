@@ -205,3 +205,154 @@ pre.json { margin: 0; padding: 12px 14px; background: var(--bg); border: 1px sol
 .link { color: var(--info); cursor: pointer; background: none; border: 0; padding: 0; font: inherit; }
 .link:hover { text-decoration: underline; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   Theme v2 — ChatGPT palette, Docker Desktop / LangGraph Studio feel.
+   Later rules override the foundation above; tokens drive everything.
+   ═════════════════════════════════════════════════════════════════════════ */
+:root, :root[data-theme="dark"] {
+  --bg: #212121;            /* ChatGPT main surface */
+  --bg-side: #171717;       /* ChatGPT sidebar */
+  --bg-raised: #2a2a2a;
+  --bg-hover: #303030;
+  --bg-input: #2f2f2f;      /* ChatGPT composer */
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.15);
+  --text: #ececec;
+  --text-dim: #b4b4b4;
+  --text-faint: #8e8e8e;
+  --accent: #10a37f;        /* ChatGPT green */
+  --accent-hover: #1a7f64;
+  --accent-soft: rgba(16, 163, 127, 0.14);
+  --ok: #10a37f;
+  --warn: #f2a93b;
+  --bad: #ef4444;
+  --info: #3b9eff;          /* Docker blue */
+  --muted: #8e8e8e;
+  --radius: 14px;
+  --sans: "Söhne", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --shadow: 0 1px 2px rgba(0,0,0,.25), 0 8px 24px rgba(0,0,0,.18);
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  --bg: #ffffff;
+  --bg-side: #f9f9f9;
+  --bg-raised: #ffffff;
+  --bg-hover: #f3f3f3;
+  --bg-input: #f4f4f4;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.15);
+  --text: #0d0d0d;
+  --text-dim: #5d5d5d;
+  --text-faint: #8f8f8f;
+  --accent-soft: rgba(16, 163, 127, 0.10);
+  --shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.06);
+  color-scheme: light;
+}
+body { background: var(--bg); font-size: 14px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1 { font-size: 24px; font-weight: 600; }
+h2 { font-size: 14.5px; font-weight: 600; }
+
+/* sidebar: ChatGPT-style rail with Docker Desktop sections */
+.app { grid-template-columns: 252px 1fr; }
+.sidebar { background: var(--bg-side); border-right: 1px solid var(--border); padding: 12px 10px; gap: 2px; overflow-y: auto; }
+.brand { padding: 6px 10px 14px; font-size: 16px; gap: 10px; }
+.brand-mark { width: 28px; height: 28px; border: 0; border-radius: 8px; background: var(--accent); }
+.brand-mark::after { width: 10px; height: 10px; background: #fff; border-radius: 3px; }
+.brand small { display: block; font-size: 11px; font-weight: 400; color: var(--text-faint); }
+.nav-section { padding: 14px 12px 4px; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-faint); }
+.nav-link { font-family: var(--sans); font-size: 13.5px; padding: 8px 12px; border-radius: 10px; border: 0; color: var(--text-dim); }
+.nav-link:hover { background: var(--bg-hover); color: var(--text); }
+.nav-link.active { background: var(--bg-hover); color: var(--text); border: 0; font-weight: 500; }
+.nav-link.active svg { color: var(--accent); }
+.nav-sep { margin: 8px 6px; }
+.sidebar-foot { font-family: var(--sans); font-size: 12px; border-top: 1px solid var(--border); padding: 12px 6px 4px; }
+.new-task { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; margin-bottom: 6px; border-radius: 10px;
+  border: 1px solid var(--border-strong); background: transparent; cursor: pointer; font-size: 13.5px; color: var(--text); }
+.new-task:hover { background: var(--bg-hover); }
+
+/* top bar */
+.main { padding: 0; display: flex; flex-direction: column; }
+.topbar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 12px; padding: 10px 28px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
+.topbar .crumbs { color: var(--text-dim); font-size: 13px; }
+.topbar .spacer { flex: 1; }
+.status-pill { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px; border-radius: 999px; background: var(--bg-input);
+  font-size: 12px; color: var(--text-dim); border: 1px solid var(--border); }
+.content { padding: 24px 28px 48px; }
+.icon-btn { background: transparent; border: 1px solid var(--border); border-radius: 999px; width: 32px; height: 32px; display: grid;
+  place-items: center; cursor: pointer; color: var(--text-dim); }
+.icon-btn:hover { background: var(--bg-hover); color: var(--text); }
+
+/* surfaces */
+.page { gap: 20px; max-width: 1400px; }
+.page-sub { font-family: var(--sans); font-size: 13.5px; }
+.panel { background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius); }
+:root[data-theme="light"] .panel { box-shadow: var(--shadow); }
+.panel-head { padding: 16px 18px 0; }
+.panel-body { padding: 14px 18px 18px; }
+.metric { padding: 18px; }
+.metric .label { font-family: var(--sans); font-size: 12.5px; }
+.metric .value { font-size: 28px; }
+.metric .sub { font-family: var(--sans); }
+
+/* controls: ChatGPT pill buttons + composer-style inputs */
+.btn { border-radius: 999px; padding: 7px 14px; background: transparent; border: 1px solid var(--border-strong); font-weight: 500; }
+.btn:hover:not(:disabled) { background: var(--bg-hover); }
+.btn.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+.btn.primary:hover:not(:disabled) { background: var(--text-dim); border-color: var(--text-dim); }
+.btn.accent { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn.accent:hover:not(:disabled) { background: var(--accent-hover); }
+.btn.sm { padding: 4px 11px; }
+input[type="search"], input[type="text"], input[type="password"], select, textarea {
+  background: var(--bg-input); border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; color: var(--text); }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.chip { border-radius: 999px; font-family: var(--sans); }
+.chip.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.tabs { gap: 2px; }
+.tab { border-radius: 8px 8px 0 0; text-transform: capitalize; }
+.tab.on { border-bottom-color: var(--accent); }
+
+/* badges: soft pills like Docker Desktop container states */
+.badge { border-radius: 999px; padding: 2px 10px; border: 0; background: var(--bg-hover); font-size: 11.5px; font-weight: 500; }
+.badge.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 15%, transparent); }
+.badge.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 15%, transparent); }
+.badge.bad { color: var(--bad); background: color-mix(in srgb, var(--bad) 15%, transparent); }
+.badge.info { color: var(--info); background: color-mix(in srgb, var(--info) 15%, transparent); }
+.badge.muted { color: var(--text-faint); }
+.bar { height: 6px; border-radius: 999px; background: var(--bg-hover); }
+.bar > i { background: var(--accent); border-radius: 999px; }
+
+/* tables */
+.dt th { font-family: var(--sans); font-size: 12px; text-transform: none; padding: 12px 16px; }
+.dt td { padding: 12px 16px; }
+.dt tbody tr:hover { background: var(--bg-hover); }
+.banner { border-radius: 12px; }
+pre.json, pre.code { background: var(--bg-side); border: 1px solid var(--border); border-radius: 12px; color: var(--text); }
+:root[data-theme="light"] pre.json, :root[data-theme="light"] pre.code { background: #f7f7f8; }
+.link { color: var(--accent); }
+
+/* graphs (React Flow — LangGraph Studio look) */
+.react-flow { --xy-edge-stroke-default: var(--border-strong); --xy-controls-button-background-color-default: var(--bg-raised); }
+.rf-node { border-radius: 12px; background: var(--bg-raised); font-family: var(--sans); box-shadow: var(--shadow); }
+.rf-node.supervisor { border-color: var(--accent); }
+.graph { background-image: radial-gradient(var(--border-strong) 1px, transparent 1px); background-size: 18px 18px; }
+
+/* dialogs / toasts */
+.dialog, .drawer { border-radius: 18px; background: var(--bg-raised); box-shadow: var(--shadow); }
+.toast { border-radius: 12px; box-shadow: var(--shadow); }
+.toast.ok { border-left-color: var(--accent); }
+
+/* get-started cards */
+.hero { padding: 28px; border-radius: 20px; background: linear-gradient(135deg, var(--accent-soft), transparent 60%), var(--bg-raised);
+  border: 1px solid var(--border); display: grid; gap: 10px; }
+.hero h1 { font-size: 28px; }
+.steps { counter-reset: step; display: grid; gap: 14px; }
+.step { display: grid; grid-template-columns: 32px 1fr; gap: 14px; align-items: start; }
+.step::before { counter-increment: step; content: counter(step); width: 28px; height: 28px; border-radius: 999px; display: grid;
+  place-items: center; background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: 13px; }
+.copy-wrap { position: relative; }
+.copy-wrap .btn { position: absolute; top: 8px; right: 8px; }
+pre.code { margin: 0; padding: 14px 16px; overflow: auto; font: 12.5px/1.6 var(--mono); }
+@media (max-width: 760px) { .topbar { padding: 10px 16px; } .content { padding: 16px; } }

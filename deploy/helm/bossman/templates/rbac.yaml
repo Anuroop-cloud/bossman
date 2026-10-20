@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "bossman.fullname" . }}
+  labels: {{- include "bossman.labels" . | nindent 4 }}
+{{- if .Values.kubernetesRestarts.enabled }}
+---
+# Recovery restarts agent pods by deleting them; their Deployment recreates them.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "bossman.fullname" . }}-restarter
+  labels: {{- include "bossman.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "bossman.fullname" . }}-restarter
+  labels: {{- include "bossman.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "bossman.fullname" . }}-restarter
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "bossman.fullname" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

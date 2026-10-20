@@ -1,0 +1,113 @@
+# ── BOSSman control plane ─────────────────────────────────────────────────────
+image:
+  repository: bossman/bossman
+  tag: ""                 # defaults to .Chart.AppVersion
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+# Nodes elect one leader for supervision duties; the others serve the API
+# and take over within a lease interval. 2 = high availability.
+replicaCount: 2
+
+env: production
+publicReads: false        # dashboard/API reads require a token
+heartbeat:
+  intervalSeconds: 10
+  timeoutSeconds: 30
+restartBudget:
+  maxRestarts: 3
+  windowSeconds: 60
+llmLimit:
+  maxConcurrent: 20
+  ratePerSecond: 2
+  burst: 10
+roleLimits: ""            # e.g. "memory-sync=1,default/researcher=10"
+publicUrl: ""             # URL agents use to reach BOSSman (defaults to the in-cluster Service)
+extraEnv: {}              # additional environment variables
+
+# Credentials. Either let the chart create a Secret from these values, or
+# point existingSecret at one with keys: adminToken, operatorToken,
+# agentToken, secretKey (and optionally anthropicApiKey).
+auth:
+  existingSecret: ""
+  adminToken: ""
+  operatorToken: ""
+  agentToken: ""
+  agentTokenNamespaces: "*"
+  agentMaxTier: WRITE
+  secretKey: ""
+  anthropicApiKey: ""
+
+# Restart agent pods for recovery by deleting them (their Deployment recreates them).
+kubernetesRestarts:
+  enabled: true
+
+otel:
+  endpoint: ""            # OTLP/HTTP endpoint, e.g. http://otel-collector.observability:4318
+
+service:
+  type: ClusterIP
+  port: 7070
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  host: bossman.example.com
+  tls: []                 # - secretName: bossman-tls  hosts: [bossman.example.com]
+
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits: { memory: 1Gi }
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  fsGroup: 10001
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities: { drop: [ALL] }
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+metrics:
+  serviceMonitor:
+    enabled: false        # requires the Prometheus Operator CRDs
+    interval: 30s
+
+# ── Datastores ────────────────────────────────────────────────────────────────
+# Bundled single-instance Redis/PostgreSQL for evaluation. For production set
+# enabled: false and point externalRedisUrl / externalDatabaseUrl at managed services.
+redis:
+  enabled: true
+  image: redis:7-alpine
+  storage: 1Gi
+externalRedisUrl: ""
+
+postgresql:
+  enabled: true
+  image: postgres:16-alpine
+  storage: 5Gi
+  username: bossman
+  password: ""            # generated when empty
+  database: bossman
+externalDatabaseUrl: ""   # postgresql+asyncpg://user:pass@host:5432/db
+
+# ── Supervised agents (optional) ──────────────────────────────────────────────
+# Each entry becomes a Deployment wired to BOSSman (BOSSMAN_URL, BOSSMAN_API_KEY,
+# POD_NAME/POD_NAMESPACE so BOSSman can restart the pod during recovery).
+agents: []
+#  - name: researcher
+#    image: ghcr.io/acme/researcher-agent:1.4.0
+#    replicas: 3
+#    role: researcher
+#    namespace: default
+#    env: { MODEL: claude-opus-5-5 }
+#    resources: { requests: { cpu: 100m, memory: 256Mi } }

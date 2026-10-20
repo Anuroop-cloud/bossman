@@ -43,16 +43,16 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from contracts.agent_state import AgentId
-from contracts.events import BossmanEvent, EventType
-from contracts.recovery_ledger import FailureType, RecoveryStrategy
-from core.event_bus import EventBus
-from detection.failure_detector import (
+from bossman_server.contracts.agent_state import AgentId
+from bossman_server.contracts.events import BossmanEvent, EventType
+from bossman_server.contracts.recovery_ledger import FailureType, RecoveryStrategy
+from bossman_server.core.event_bus import EventBus
+from bossman_server.detection.failure_detector import (
     DetectedFailure,
     DetectorConfig,
     FailureDetector,
 )
-from detection.diagnostician import (
+from bossman_server.detection.diagnostician import (
     Diagnosis,
     Diagnostician,
     LLM_ESCALATION_THRESHOLD,
@@ -427,10 +427,14 @@ class TestDiagnostician:
         assert result.confidence < LLM_ESCALATION_THRESHOLD
         assert result.needs_llm_review is True
 
-    def test_unmatched_failure_type_fallback(self):
+    def test_unmatched_failure_type_fallback(self, monkeypatch):
         """Failure type not in any rule → fallback confidence=0.0."""
+        import bossman_server.detection.diagnostician as dmod
+
+        # Every FailureType now has a rule, so drop the matching one to reach the fallback.
+        monkeypatch.setattr(dmod, "_RULES", [r for r in dmod._RULES
+                                             if FailureType.EXTERNAL_SERVICE_FAILURE not in r.failure_types])
         diag = Diagnostician()
-        # Use EXTERNAL_SERVICE_FAILURE which has no specific rule
         failure = make_detected(FailureType.EXTERNAL_SERVICE_FAILURE)
         result = diag.diagnose(failure)
         assert result.confidence == 0.0

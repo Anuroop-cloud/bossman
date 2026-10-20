@@ -1,14 +1,57 @@
-# BOSSman local infrastructure for Phase 9 (Redis + PostgreSQL).
+# BOSSman — full local stack.
 #
-#   docker compose up -d --wait          # start
-#   docker compose down                  # stop (data kept in named volumes)
-#   docker compose down -v               # stop and wipe data
+#   cp .env.example .env            # set tokens / keys (never commit .env)
+#   docker compose up -d --wait      # API + dashboard on http://localhost:7070
+#   docker compose --profile ha up -d --wait   # + a second node (leader election)
+#   docker compose down              # stop (data kept in named volumes)
+#   docker compose down -v           # stop and wipe data
 #
-# Host ports are deliberately non-default so they don't collide with a
-# local Redis/Postgres install:  Redis 6390 · PostgreSQL 5440.
+#   docker compose up -d --wait redis postgres   # infra only (integration tests)
+#
+# Host ports are deliberately non-default so they don't collide with a local
+# install: Redis 6390 · PostgreSQL 5440. Everything binds to 127.0.0.1 — put
+# a TLS-terminating proxy in front before exposing BOSSman beyond this host.
 name: bossman
 
+x-bossman: &bossman
+  build: .
+  image: bossman/bossman:${BOSSMAN_VERSION:-0.2.0}
+  restart: unless-stopped
+  depends_on:
+    redis: { condition: service_healthy }
+    postgres: { condition: service_healthy }
+  env_file:
+    - path: .env
+      required: false
+  environment: &bossman-env
+    API_HOST_BIND: 0.0.0.0
+    API_PORT: "7070"
+    BOSSMAN_MODE: distributed
+    BOSSMAN_PERSISTENCE: sql
+    REDIS_URL: redis://redis:6379/0
+    DATABASE_URL: postgresql+asyncpg://bossman:${POSTGRES_PASSWORD:-bossman}@postgres:5432/bossman
+    BOSSMAN_PUBLIC_READS: ${BOSSMAN_PUBLIC_READS:-true}
+    BOSSMAN_PUBLIC_URL: ${BOSSMAN_PUBLIC_URL:-http://localhost:7070}
+    BOSSMAN_CORS_ORIGINS: ${BOSSMAN_CORS_ORIGINS:-http://localhost:7070,http://127.0.0.1:7070,http://localhost:3010}
+
 services:
+  bossman:
+    <<: *bossman
+    environment:
+      <<: *bossman-env
+      BOSSMAN_NODE_ID: node-1
+    ports:
+      - "127.0.0.1:${BOSSMAN_PORT:-7070}:7070"
+
+  bossman-2:
+    <<: *bossman
+    profiles: [ha]
+    environment:
+      <<: *bossman-env
+      BOSSMAN_NODE_ID: node-2
+    ports:
+      - "127.0.0.1:7071:7070"
+
   redis:
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
@@ -26,7 +69,7 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: bossman
-      POSTGRES_PASSWORD: bossman
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bossman}
       POSTGRES_DB: bossman
     ports:
       - "127.0.0.1:5440:5432"

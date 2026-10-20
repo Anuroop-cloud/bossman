@@ -5,17 +5,17 @@ import asyncio
 import fakeredis
 import pytest
 
-from contracts.agent_state import AgentInfo, AgentStatus
-from contracts.events import BossmanEvent, EventType
-from contracts.heartbeat import HeartbeatPayload
-from contracts.recovery_ledger import (
+from bossman_server.contracts.agent_state import AgentInfo, AgentStatus
+from bossman_server.contracts.events import BossmanEvent, EventType
+from bossman_server.contracts.heartbeat import HeartbeatPayload
+from bossman_server.contracts.recovery_ledger import (
     FailureType,
     RecoveryAttempt,
     RecoveryOutcome,
     RecoveryStrategy,
     new_incident_id,
 )
-from infra import (
+from bossman_server.infra import (
     DistributedEventBus,
     DurableAgentRegistry,
     InMemoryBackend,

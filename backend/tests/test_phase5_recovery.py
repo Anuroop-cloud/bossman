@@ -51,16 +51,16 @@ from typing import Any
 
 import pytest
 
-from contracts.agent_state import AgentId, AgentInfo, AgentStatus, TaskId
-from contracts.events import BossmanEvent, EventType
-from contracts.recovery_ledger import FailureType, RecoveryOutcome, RecoveryStrategy
-from core.event_bus import EventBus
-from core.registry import AgentRegistry
-from core.task_manager import TaskManager
-from detection.diagnostician import Diagnosis, Diagnostician
-from detection.failure_detector import DetectedFailure, DetectorConfig, FailureDetector
-from recovery.circuit_breaker import CircuitBreaker, CircuitBreakerRegistry, CircuitOpenError, CircuitState
-from recovery.recovery_engine import RecoveryEngine
+from bossman_server.contracts.agent_state import AgentId, AgentInfo, AgentStatus, TaskId
+from bossman_server.contracts.events import BossmanEvent, EventType
+from bossman_server.contracts.recovery_ledger import FailureType, RecoveryOutcome, RecoveryStrategy
+from bossman_server.core.event_bus import EventBus
+from bossman_server.core.registry import AgentRegistry
+from bossman_server.core.task_manager import TaskManager
+from bossman_server.detection.diagnostician import Diagnosis, Diagnostician
+from bossman_server.detection.failure_detector import DetectedFailure, DetectorConfig, FailureDetector
+from bossman_server.recovery.circuit_breaker import CircuitBreaker, CircuitBreakerRegistry, CircuitOpenError, CircuitState
+from bossman_server.recovery.recovery_engine import RecoveryEngine
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────

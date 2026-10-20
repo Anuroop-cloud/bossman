@@ -1,0 +1,49 @@
+{{- range $a := .Values.agents }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "bossman.fullname" $ }}-agent-{{ $a.name }}
+  labels:
+    {{- include "bossman.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: agent
+    bossman.dev/role: {{ default $a.name $a.role | quote }}
+spec:
+  replicas: {{ default 1 $a.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ $.Release.Name }}
+      bossman.dev/agent: {{ $a.name | quote }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: {{ $.Release.Name }}
+        app.kubernetes.io/component: agent
+        bossman.dev/agent: {{ $a.name | quote }}
+    spec:
+      containers:
+        - name: agent
+          image: {{ $a.image }}
+          {{- with $a.command }}
+          command: {{- toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+            - { name: BOSSMAN_URL, value: {{ include "bossman.url" $ | quote }} }
+            - name: BOSSMAN_API_KEY
+              valueFrom: { secretKeyRef: { name: {{ include "bossman.secretName" $ }}, key: agentToken } }
+            - { name: BOSSMAN_ROLE, value: {{ default $a.name $a.role | quote }} }
+            - { name: BOSSMAN_NAMESPACE, value: {{ default "default" $a.namespace | quote }} }
+            # downward API → BOSSman can restart this exact pod during recovery
+            - name: POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - name: POD_NAMESPACE
+              valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+            - name: BOSSMAN_AGENT_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            {{- range $k, $v := $a.env }}
+            - { name: {{ $k }}, value: {{ $v | quote }} }
+            {{- end }}
+          {{- with $a.resources }}
+          resources: {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}

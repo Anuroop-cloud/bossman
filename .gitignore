@@ -14,8 +14,9 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# Anchored: an unanchored `lib/` silently ignored frontend/src/lib.
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -48,9 +49,13 @@ env/
 # Context documentation (temporary exclusion per request)
 context/
 
-# Dashboard
-*/node_modules/
-*/dist/
+# Node / build output (any depth: frontend/, sdk/typescript/)
+**/node_modules/
+**/dist/
+backend/bossman_server/static/
+
+# Local presentations
+*.pptx
 
 # Local databases / caches / logs
 *.db

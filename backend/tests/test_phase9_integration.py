@@ -16,17 +16,17 @@ import os
 
 import pytest
 
-from api.runtime import BossmanRuntime
-from contracts.agent_state import AgentInfo, AgentStatus
-from contracts.events import BossmanEvent, EventType
-from contracts.recovery_ledger import (
+from bossman_server.api.runtime import BossmanRuntime
+from bossman_server.contracts.agent_state import AgentInfo, AgentStatus
+from bossman_server.contracts.events import BossmanEvent, EventType
+from bossman_server.contracts.recovery_ledger import (
     FailureType,
     RecoveryAttempt,
     RecoveryOutcome,
     RecoveryStrategy,
 )
-from infra import DistributedEventBus, LeaderElector, RedisBackend, SqlLedgerStore
-from infra.settings import InfraSettings
+from bossman_server.infra import DistributedEventBus, LeaderElector, RedisBackend, SqlLedgerStore
+from bossman_server.infra.settings import InfraSettings
 
 pytestmark = pytest.mark.integration
 

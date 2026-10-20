@@ -55,11 +55,11 @@ from typing import Any
 
 import pytest
 
-from contracts.agent_state import AgentId
-from contracts.recovery_ledger import FailureType, RecoveryStrategy
-from detection.diagnostician import Diagnosis, Diagnostician
-from detection.failure_detector import DetectedFailure
-from detection.llm_diagnostician import (
+from bossman_server.contracts.agent_state import AgentId
+from bossman_server.contracts.recovery_ledger import FailureType, RecoveryStrategy
+from bossman_server.detection.diagnostician import Diagnosis, Diagnostician
+from bossman_server.detection.failure_detector import DetectedFailure
+from bossman_server.detection.llm_diagnostician import (
     LLMDiagnostician,
     _parse_llm_response,
     build_prompt,

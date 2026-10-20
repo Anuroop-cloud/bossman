@@ -1,253 +1,200 @@
-# BOSSman — Living Engineering Documentation
+<div align="center">
 
-**Last verified phase:** Phase 9  
-**Test status:** 234 passing  
-**Implementation status:** Active Development (Phases 0–9 Complete)  
-**Last verification:** 2026-10-05  
+# BOSSman
 
-This is the AI Systems Engineering and Architecture handbook for BOSSman. It explains the entire system from first principles, documenting what actually exists in the repository.
+**The control plane for AI agent fleets.**
+
+Supervision, self-healing, resource arbitration and governance for production multi-agent systems:
+self-hosted, framework-agnostic, and deployable like any other piece of infrastructure.
+
+`Python SDK` · `TypeScript SDK` · `HTTP API` · `Docker` · `Kubernetes (Helm)` · `PostgreSQL` · `Redis`
+
+</div>
 
 ---
 
-## 1. BOSSman in One Minute
+## Overview
 
-**What BOSSman is:**  
-BOSSman (Backend Orchestrator & Self-healing Supervisor) is a control plane and operating system for intelligent AI agents. It sits above individual agent frameworks, treating them as fallible processes that need supervision, resource management, and automated recovery.
+Production agent systems fail in ways conventional software does not. They loop silently, exhaust their context windows, spawn duplicate workers that deadlock on shared resources, hammer rate-limited APIs, degrade in quality without raising an error, and occasionally take irreversible actions faster than a human can intervene.
 
-**What problem it solves:**  
-In production, multi-agent systems fail unpredictably: they deadlock on shared resources, get trapped in retry storms against rate-limited APIs, exhaust their context windows, or silently degrade in quality. Standard frameworks don't natively solve orchestration-level resilience.
+BOSSman treats agents the way an operating system treats processes. Agents written in any framework (LangGraph, CrewAI, the OpenAI Agents SDK, the Claude Agent SDK, or plain code) connect to BOSSman over HTTP. BOSSman then **schedules their work, watches their health, arbitrates shared resources, enforces what they may do, and recovers them automatically when they fail.** It does not care how an agent reasons. It cares that the agent is alive, making progress, within its budget, and within its mandate.
 
-**Why it exists:**  
-To prevent cascaded failures across an agent workforce and ensure deterministic, verifiable recovery without relying purely on LLM self-correction.
+| Operating-system concept | BOSSman equivalent |
+| --- | --- |
+| Process table | Agent registry with namespaces and epoch-based fencing |
+| Scheduler | Leased task queue with priorities, dependencies, retries and a dead-letter queue |
+| init / systemd | Managed mode: BOSSman launches agent processes or containers and restarts them |
+| Signals | Directives: `PAUSE`, `RESUME`, `ABORT_TASK`, `COMPACT_CONTEXT`, `ROLLBACK_CHECKPOINT`, `FALLBACK_MODEL`, `RESTART`, `SHUTDOWN` |
+| Mutex, semaphore, rate limiter | Leased locks with deadlock detection; fleet-wide concurrency and token-bucket limits |
+| Permissions and `sudo` | Permission tiers, policy engine, human approvals, credential gateway |
+| Watchdog, OOM killer | Heartbeat timeouts, no-progress detection, context-overflow and token-burn detectors |
 
-**BOSSman vs. LangGraph:**  
-LangGraph manages the internal state machine (the *process*) of a single agent. BOSSman manages the *workforce* (the *operating system*). BOSSman does not care how the agent thinks; it cares whether the agent is healthy, making progress, and not hoarding resources.
+## Capabilities
 
-### Simple Architecture
+**Supervision and recovery**
+- Heartbeat watchdog, stagnation detection, and fencing tokens that stop a superseded process from acting.
+- Detect → diagnose → recover → verify loop: a deterministic rule engine, with an optional LLM diagnostician for novel failures.
+- Ten recovery strategies, including real process, Docker and Kubernetes restarts, task reassignment, checkpoint rollback, circuit breaking, model fallback, context compaction, forced lock release and human escalation.
+- Erlang/OTP-style supervision trees (`one_for_one`, `one_for_all`, `rest_for_one`) with restart budgets that escalate to the parent supervisor.
+
+**Durable work**
+- Lease-based task claims with fencing. If a worker dies, its lease expires and the task is retried elsewhere.
+- Transient failures retry with exponential backoff and full jitter. Non-transient failures fail fast to the dead-letter queue.
+- Task dependencies with **cascade containment**: downstream work is quarantined instead of consuming poisoned input.
+- JSON-Schema output validation, resumable checkpoints, idempotency keys and exactly-once side effects.
+
+**Shared resources**
+- Named locks acquired atomically in a global order, with wait-for-graph deadlock detection and TTL leases.
+- Cluster-wide concurrency caps and rate limits (a built-in `llm` limit gates every model call in the fleet).
+- Shared circuit breakers, so the whole fleet fails fast on a degraded dependency.
+
+**Governance**
+- Every side-effecting action is authorised by a policy engine. The checks are tier ceilings, declared capabilities, rules, irreversibility and kill switches.
+- Human approvals with an N-person rule; unanswered requests expire and are denied by default.
+- Credential broker and HTTP tool gateway: secrets are encrypted at rest and injected server-side, so agents never hold production credentials.
+- Namespaced API keys stored only as hashes. A complete audit trail of decisions, approvals and operator actions.
+
+**Observability and quality**
+- Real-time dashboard: fleet topology, agents, tasks, incidents, approvals, operations, governance and traces.
+- One causal trace per pipeline (W3C trace context), exportable through OpenTelemetry to Jaeger, Langfuse, LangSmith or Datadog.
+- Prometheus metrics, liveness and readiness probes.
+- Leading-indicator monitoring: token-burn anomalies, API-rate spikes, queue backlog, DLQ growth and spawn storms.
+- Known-answer probes and quality scores (optionally LLM-judged) to catch silent degradation.
+
+## Architecture
 
 ```mermaid
-graph TD
-    A[BOSSman Control Plane] -->|Assigns Tasks| B(Agent Workforce)
-    B -->|Heartbeats & Events| A
-    B -->|Requests Resources| C[Resource Manager]
-    A -->|Detects & Diagnoses| D[Self-Healing Engine]
-    D -->|Executes Recovery| B
-    A <-->|Persists State| E[(PostgreSQL / Redis)]
+graph LR
+    subgraph Agents["Your agents (any framework, any language)"]
+        A1[Python SDK]
+        A2[TypeScript SDK]
+        A3[HTTP client]
+    end
+    subgraph BOSSman["BOSSman control plane (N nodes, one elected leader)"]
+        API[/v1 Agent protocol · /api Operator API/]
+        SUP[Watchdog · Detector · Recovery · Evaluator]
+        WORK[Task queue · Leases · DLQ]
+        RES[Locks · Limits · Circuits]
+        GOV[Policy · Approvals · Credential gateway]
+        OBS[Events · Traces · Metrics]
+    end
+    UI[Dashboard] --> API
+    CLI[bossman CLI] --> API
+    A1 & A2 & A3 -->|register · heartbeat · claim · authorize| API
+    API --> WORK & RES & GOV
+    SUP -->|directives · restarts| Agents
+    BOSSman --> R[(Redis: coordination)]
+    BOSSman --> P[(PostgreSQL: durable state)]
+    OBS --> OT[OpenTelemetry / Prometheus]
 ```
 
----
+A single node runs entirely in memory for development. In production, nodes share Redis (coordination, events, locks, leader election) and PostgreSQL (tasks, ledger, keys, approvals, policies, events). Any node serves the API; the elected leader runs supervision duties and fails over within a lease interval.
 
-## 2. The Core Mental Model
+## Quick start
 
-BOSSman maps operating system concepts to AI agent supervision.
+**1. Start the control plane**
 
-| OS Concept | BOSSman Concept | Implemented? |
-| :--- | :--- | :--- |
-| Process | Agent (LangGraph/BaseAgent) | ✅ Yes |
-| Process scheduler | TaskManager | ✅ Yes |
-| Process table | DurableRegistry | ✅ Yes |
-| Watchdog | Watchdog (Stagnation detection) | ✅ Yes |
-| Semaphore | LLMSemaphore (Concurrency cap) | ✅ Yes |
-| Rate limiter | TokenBucket (Throughput cap) | ✅ Yes |
-| Mutex / lock | ResourceMediator (Exclusive access)| ✅ Yes |
-| Deadlock | Agent/resource deadlock detection | ✅ Yes |
-| IPC | DistributedBus (Redis) | ✅ Yes |
-| Process failure | Agent failure (STUCK/FAILED) | ✅ Yes |
-| Restart | Agent recovery (10 strategies) | ✅ Yes |
-| HA / Active-Passive | LeaderElector (Redis leases) | ✅ Yes |
-
----
-
-## 3. Full Architecture
-
-```mermaid
-graph TD
-    subgraph Infrastructure
-        Redis[(Redis - PubSub/Leases)]
-        DB[(PostgreSQL - Durable Ledger)]
-    end
-
-    subgraph Control Plane
-        Registry[DurableRegistry]
-        Tasks[TaskManager]
-        SubManager[SubagentManager]
-        Leader[LeaderElector]
-    end
-
-    subgraph Observability Plane
-        Bus((DistributedBus))
-        Watchdog[Watchdog]
-        Faults[FaultInjector]
-    end
-
-    subgraph Self-Healing Plane
-        Detector[FailureDetector]
-        Rules[Rule-Based Diagnostician]
-        LLMDiag[LLM Diagnostician]
-        Engine[RecoveryEngine]
-        Circuit[CircuitBreaker]
-        Eval[Evaluator]
-        Ledger[(PersistentLedger)]
-    end
-
-    subgraph Resource Plane
-        Mediator[ResourceMediator]
-        Sem[LLMSemaphore]
-        Bucket[TokenBucket]
-    end
-
-    subgraph Agent Runtime
-        Agent[LangGraph Agent]
-    end
-
-    subgraph Future
-        Dash[WebSocket Dashboard]
-    end
-
-    Agent -.->|Heartbeats| Watchdog
-    Watchdog -->|Events| Bus
-    Agent -.->|Events| Bus
-    Agent <-->|Requests| Mediator
-
-    Bus <-->|Syncs| Redis
-    Leader <-->|Acquires Lease| Redis
-    Registry <-->|Mirrors State| Redis
-    Ledger <-->|Saves Incidents| DB
-
-    Bus -->|Subscribes| Detector
-    Detector -->|DetectedFailure| Rules
-    Rules -->|Low Confidence| LLMDiag
-    Rules -->|Diagnosis| Engine
-    LLMDiag -->|Enhanced Diagnosis| Engine
-    Engine -->|Strategies| Agent
-    Engine -->|Updates| Circuit
-    Engine -->|Records| Ledger
-    Eval -->|Verifies| Ledger
-
-    classDef implemented fill:#2a5934,stroke:#4caf50,stroke-width:2px,color:white;
-    classDef future fill:#59442a,stroke:#ff9800,stroke-width:2px,stroke-dasharray: 5 5,color:white;
-    classDef infra fill:#1f3a93,stroke:#3498db,stroke-width:2px,color:white;
-
-    class Registry,Tasks,SubManager,Bus,Watchdog,Faults,Detector,Rules,LLMDiag,Engine,Circuit,Eval,Ledger,Mediator,Sem,Bucket,Agent,Leader implemented;
-    class Dash future;
-    class Redis,DB infra;
+```bash
+git clone https://github.com/<your-org>/bossman.git && cd bossman
+cp .env.example .env              # set tokens and BOSSMAN_SECRET_KEY
+docker compose up -d --wait       # API + dashboard at http://localhost:7070
 ```
 
----
+**2. Connect an agent**
 
-## 4. System Planes
-
-### Infrastructure Plane (Phase 9)
-Provides distributed HA state.
-- **LeaderElector**: Ensures only one node acts as the supervisor (Watchdog/Detector) across a cluster.
-- **DurableRegistry**: Redis-backed agent process table.
-- **PersistentLedger**: PostgreSQL-backed recovery audit trail.
-
-### Control Plane
-Manages workforce state.
-- **TaskManager**: Distributes tasks, tracks retries, and maintains the Dead Letter Queue (DLQ).
-- **SubagentManager**: Prevents duplicate spawns via idempotency keys.
-
-### Observability Plane
-Handles telemetry and system vitals.
-- **DistributedBus**: Redis-backed pub/sub broker for cluster-wide IPC.
-- **Watchdog**: Scans the Registry for stale heartbeats.
-
-### Self-Healing Plane
-Implements the Detect → Diagnose → Recover → Verify loop.
-- **FailureDetector**: Uses sliding windows over EventBus streams to detect anomalies.
-- **Diagnostician**: Maps failures to root causes and recovery strategies using rules.
-- **LLMDiagnostician**: Augments rule-based diagnosis for novel failures.
-- **RecoveryEngine**: Executes actions (restart, circuit break, escalate).
-- **Evaluator**: Verifies recovery success via L1-L4 health checks.
-
-### Resource Plane
-- **LLMSemaphore**, **TokenBucket**, **ResourceMediator**: Coordinates rate limits and concurrent access to APIs and datasets.
-
----
-
-## 5. Phase-by-Phase Status
-
-| Phase | Purpose | Status | Important Components |
-| --- | --- | --- | --- |
-| 0 | Agent Contract | ✅ Done | `AgentState`, `BossmanEvent` |
-| 1 | BOSSman Core | ✅ Done | `EventBus`, `Registry`, `Watchdog` |
-| 2 | Real Agent | ✅ Done | `BaseAgent`, `ResearchAgent` |
-| 3 | Resource Mgr | ✅ Done | `LLMSemaphore`, `TokenBucket` |
-| 4 | Detection | ✅ Done | `FailureDetector`, `Diagnostician` |
-| 5 | Recovery | ✅ Done | `RecoveryEngine`, `CircuitBreaker` |
-| 6 | Evaluator | ✅ Done | `Evaluator`, `HealthChecker` |
-| 7 | LLM Diagnosis | ✅ Done | `LLMDiagnostician` |
-| 8 | REST API | ✅ Done | FastAPI integration (`/api/cluster`) |
-| 9 | Distributed HA | ✅ Done | Redis, PostgreSQL, Leader Election |
-| 10 | Policy/Trust | 🔜 Next | RBAC, Sandboxing, Namespaces |
-
----
-
-## 6. Repository Map
-
-```text
-bossman/
-├── backend/                 # Python Control Plane & Agent Logic
-│   ├── agents/              # Phase 2: Agent runtime
-│   ├── api/                 # Phase 8: FastAPI server & runtime wiring
-│   ├── contracts/           # Phase 0: System boundaries & data models
-│   ├── core/                # Phase 1: Orchestration & memory layers
-│   ├── detection/           # Phase 4/7: Anomaly detection
-│   ├── evaluation/          # Phase 6: Post-recovery verification
-│   ├── infra/               # Phase 9: Durable distributed infrastructure
-│   ├── recovery/            # Phase 5: Action execution & strategies
-│   ├── resources/           # Phase 3: Contention management
-│   └── tests/               # 234 passing unit/integration tests
-├── frontend/                # React/Vite Dashboard (UI)
-│   ├── src/components/
-│   ├── src/pages/
-│   └── src/types.ts
-├── scratch/                 # Local dev/test scripts (ignored in git)
-├── docker-compose.yml       # Phase 9 infrastructure (Redis/Postgres)
-└── README.md
+```bash
+pip install -e sdk/python         # bossman-sdk and the `bossman` CLI
+export BOSSMAN_URL=http://localhost:7070
+export BOSSMAN_API_KEY=<BOSSMAN_AGENT_TOKEN from .env>
 ```
 
----
+```python
+import asyncio
+from bossman import Bossman
 
-## 7. High Availability & Distributed Operation (Phase 9)
+async def handle(task):
+    async with agent.limit("llm"):                      # fleet-wide LLM gate
+        answer = await call_model(task.input["question"])
+    agent.report(tokens=1200, context=0.31)             # telemetry for the watchdog
+    await task.checkpoint("answered", {"chars": len(answer)})
+    return {"answer": answer}                           # validated against the task's output_schema
 
-BOSSman can run in two modes controlled by `BOSSMAN_MODE`:
+async def main():
+    global agent
+    async with Bossman() as bm, bm.agent(name="researcher-1", role="researcher") as agent:
+        await agent.serve(handle)
 
-1. **`standalone`**: Single-process, in-memory. Perfect for local testing with 1-4 agents.
-2. **`distributed`**: 
-   - Connects to **Redis** for Pub/Sub events (`DistributedBus`).
-   - Uses Redis for `LeaderElection` (only one node runs the Watchdog/Detector).
-   - Backs `DurableRegistry` to Redis hash maps.
-   - Saves all `RecoveryLedger` incidents to **PostgreSQL** for permanent auditing.
-   - *Requires running `docker-compose up` to start infra.*
+asyncio.run(main())
+```
 
----
+**3. Send work and operate the fleet**
 
-## 8. Current System Capabilities
+```bash
+export BOSSMAN_TOKEN=<BOSSMAN_ADMIN_TOKEN>
+bossman task submit "Summarise Q3 filings" --role researcher --input '{"question": "..."}' --wait
+bossman status          # fleet health
+bossman approvals       # actions awaiting a human
+bossman events -f       # live event stream
+```
 
-### BOSSman CAN currently:
-- Run in a distributed HA cluster across multiple servers.
-- Elect a leader to avoid duplicate supervision/recovery actions.
-- Persist agent states to Redis and incidents to PostgreSQL.
-- Register agents and track heartbeat telemetry.
-- Prevent duplicate agent spawns via idempotency keys.
-- Manage exclusive resources, concurrency caps, and rate limits.
-- Detect deadlocks via cycle detection in wait-for graphs.
-- Detect retry storms and context overflows via sliding windows.
-- Map failures to 10 distinct recovery strategies.
-- Fall back to an LLM for novel failure diagnosis.
+The dashboard's **Get started** page has connect snippets for Python, TypeScript, LangGraph, raw HTTP and managed mode.
 
-### BOSSman CANNOT currently:
-- Ensure deep security isolation between agents (Phase 10: Policy & Isolation).
-- Serve the visual React Flow dashboard (UI is built but endpoints need mapping).
-- Scale agents via external orchestrators like Kubernetes automatically (Phase 12).
+## Deployment
 
----
+| Target | Command | Notes |
+| --- | --- | --- |
+| Local, zero dependencies | `pip install -e "backend[dev]" && bossmand serve` | In-memory. Add `BOSSMAN_PERSISTENCE=sql DATABASE_URL=sqlite+aiosqlite:///bossman.db` for durability. |
+| Docker Compose | `docker compose up -d --wait` | BOSSman + Redis + PostgreSQL, bound to `127.0.0.1`. |
+| High availability | `docker compose --profile ha up -d --wait` | Two nodes with leader election. |
+| Kubernetes | `helm install bossman deploy/helm/bossman` | HA Deployment, migrations init container, RBAC for pod-level recovery, optional bundled datastores, ingress, PDB, ServiceMonitor, and agent Deployments declared in `values.yaml`. |
 
-## 9. Architecture Decisions
+All configuration is through environment variables; [`.env.example`](.env.example) documents every option.
 
-- **Why EventBus?** Tight coupling between a Watchdog and a RecoveryEngine causes spaghetti code. Pub/sub isolates detection from recovery.
-- **Why Redis for HA?** Redis Pub/Sub provides low latency IPC, and its atomic operations (SET NX) allow for safe, lease-based leader election.
-- **Why deterministic rules before LLM?** Cost, speed, and reliability. 90% of system failures (timeouts, out-of-memory) are well understood. LLMs are reserved for the 10% edge cases (novel tool hallucinations).
-- **Why context compaction?** Context isn't infinite. Treating it as a system resource (like RAM) allows BOSSman to trigger "Garbage Collection" (compaction) before an API hard-fails.
+## SDKs and API
+
+| Interface | Location | Highlights |
+| --- | --- | --- |
+| Python SDK | [`sdk/python`](sdk/python) | `agent.serve`, locks, limits, circuits, `call_tool` compensation, `authorize` / `proxy`, `once`, degradation ladder, probes, LangGraph and MCP integrations, synchronous `bossman.run()` |
+| TypeScript SDK | [`sdk/typescript`](sdk/typescript) | Zero dependencies, Node 18+, `AbortSignal`-aware task handlers |
+| CLI | `bossman` (ships with the Python SDK) | Fleet, tasks, DLQ, approvals, flags, keys, secrets, policies, managed agents, events, traces |
+| Daemon | `bossmand` | `serve`, `migrate`, `keys`, `check` |
+| HTTP API | `/v1/*` agent protocol, `/api/*` operator API | OpenAPI spec at `/api/openapi.json` (interactive docs at `/api/docs` outside production) |
+
+## Security
+
+- **Authentication:** bearer tokens. Bootstrap tokens come from the environment; scoped API keys are created at runtime and stored only as SHA-256 hashes.
+- **Authorisation:** four roles (`viewer`, `agent`, `operator`, `admin`). Agent keys are namespace-scoped and carry a maximum permission tier, so an agent can never register above its ceiling.
+- **Enforcement at the infrastructure layer:** policy decisions are made by BOSSman, not by agent prompts. Irreversible actions require a justification and human approval.
+- **Secrets:** encrypted at rest with `BOSSMAN_SECRET_KEY`. In proxy mode, values never leave the control plane. Managed agents never inherit control-plane credentials.
+- **Production mode** (`BOSSMAN_ENV=production`) makes reads private and disables interactive API docs. Terminate TLS in front of BOSSman before exposing it beyond a trusted network.
+
+## Repository layout
+
+```
+backend/            bossman-server: API, control plane services, detection, recovery, migrations, tests
+sdk/python/         bossman-sdk (Python) and the bossman CLI
+sdk/typescript/     @bossman/sdk (TypeScript)
+frontend/           React dashboard, served by the API in production
+deploy/helm/        Helm chart
+examples/           Runnable agents: quickstart, pipeline, governance, managed, chaos, LangGraph, TypeScript, Kubernetes
+Dockerfile          Single image: API, dashboard, CLI
+docker-compose.yml  Local and HA stacks
+```
+
+## Development
+
+```bash
+pip install -e "backend[dev]" -e sdk/python
+cd backend && pytest                                   # unit and end-to-end suites
+docker compose up -d --wait redis postgres
+pytest -m integration                                  # against real Redis and PostgreSQL
+
+cd frontend && npm ci && npm run dev                   # dashboard on :3010, proxied to the API on :7070
+cd sdk/typescript && npm ci && npm test                # set BOSSMAN_URL and BOSSMAN_API_KEY for live tests
+```
+
+The design rationale (failure taxonomy, supervision trees, circuit breakers, the degradation ladder) is documented in `context/zylos.md`. Historical phase notes are in [`old_readme.md`](old_readme.md).
+
+## Status
+
+Version **0.2.0**. Phases 0–15 are complete: agent contract, core supervision, resource management, detection, recovery, evaluation, LLM diagnosis, dashboard, distributed high availability, the agent protocol and SDKs, durable work, packaging, governance, managed mode, and observability.

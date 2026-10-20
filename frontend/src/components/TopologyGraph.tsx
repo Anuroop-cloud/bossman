@@ -5,9 +5,6 @@ import type { Graph } from "../types";
 import clsx from "clsx";
 import { Cpu, FileText, Box, Users } from "lucide-react";
 
-const NODE_WIDTH = 180;
-const NODE_HEIGHT = 60;
-
 function CustomNode({ data }: any) {
   const Icon = data.kind === "supervisor" ? Users : data.kind === "agent" ? Cpu : data.kind === "task" ? FileText : Box;
   

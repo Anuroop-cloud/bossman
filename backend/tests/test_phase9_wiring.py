@@ -7,18 +7,18 @@ import asyncio
 import pytest
 from fastapi.testclient import TestClient
 
-from api.app import create_app
-from api.runtime import BossmanRuntime
-from contracts.agent_state import AgentInfo, AgentStatus
-from contracts.recovery_ledger import (
+from bossman_server.api.app import create_app
+from bossman_server.api.runtime import BossmanRuntime
+from bossman_server.contracts.agent_state import AgentInfo, AgentStatus
+from bossman_server.contracts.recovery_ledger import (
     FailureType,
     RecoveryAttempt,
     RecoveryOutcome,
     RecoveryStrategy,
 )
-from infra import InMemoryBackend, InMemoryLedgerStore
-from infra.persistent_ledger import PersistentLedger
-from infra.settings import InfraSettings
+from bossman_server.infra import InMemoryBackend, InMemoryLedgerStore
+from bossman_server.infra.persistent_ledger import PersistentLedger
+from bossman_server.infra.settings import InfraSettings
 
 
 def dist(node: str) -> InfraSettings:

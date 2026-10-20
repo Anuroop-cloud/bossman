@@ -1,0 +1,13 @@
+# bossman managed create -f examples/managed/spec.yaml
+name: batch-worker
+runtime: process            # or: docker  (with image: …)
+command: ["python", "examples/managed/worker.py"]
+role: batch
+namespace: default
+restart_policy: on-failure  # always | on-failure | never
+max_restarts: 5             # within window_s → then CRASHLOOP + human gate
+window_s: 300
+graceful_timeout_s: 10      # SHUTDOWN directive → SIGTERM → SIGKILL
+env:
+  CRASH_EVERY: "0"
+# supervisor: etl           # optional: join a supervision tree

@@ -10,16 +10,16 @@ from typing import Any
 import pytest
 from datetime import datetime, timezone
 
-from contracts.agent_state import AgentId, AgentInfo, PermissionTier
-from contracts.events import BossmanEvent, EventType
-from contracts.recovery_ledger import FailureType, RecoveryStrategy
-from core.event_bus import EventBus
-from core.registry import AgentRegistry
-from core.task_manager import TaskManager
-from core.watchdog import Watchdog
-from core.fault_injector.injector import FaultInjector, FaultConfig, FaultType
-from detection.failure_detector import FailureDetector, DetectorConfig, DetectedFailure
-from detection.diagnostician import Diagnostician, Diagnosis
+from bossman_server.contracts.agent_state import AgentId, AgentInfo, PermissionTier
+from bossman_server.contracts.events import BossmanEvent, EventType
+from bossman_server.contracts.recovery_ledger import FailureType, RecoveryStrategy
+from bossman_server.core.event_bus import EventBus
+from bossman_server.core.registry import AgentRegistry
+from bossman_server.core.task_manager import TaskManager
+from bossman_server.core.watchdog import Watchdog
+from bossman_server.core.fault_injector.injector import FaultInjector, FaultConfig, FaultType
+from bossman_server.detection.failure_detector import FailureDetector, DetectorConfig, DetectedFailure
+from bossman_server.detection.diagnostician import Diagnostician, Diagnosis
 
 @pytest.fixture
 def bus() -> EventBus:
@@ -49,7 +49,7 @@ async def test_a_heartbeat_timeout(
     """Test A: FaultInjector(AGENT_HANG) -> Watchdog -> AGENT_TIMEOUT -> FailureDetector -> Diagnostician"""
     agent = await registry.register(AgentInfo(name="agent-a", role="test"))
     await registry.mark_ready(agent.agent_id)
-    from contracts.agent_state import AgentStatus
+    from bossman_server.contracts.agent_state import AgentStatus
     await registry.update_status(agent.agent_id, AgentStatus.RUNNING)
 
     
